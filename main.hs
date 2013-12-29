@@ -76,11 +76,18 @@ parseAtom = do
         "#f" -> Bool False
         _    -> Atom atom
 
+parseList :: Parser LispVal
+parseList = List <$> sepBy parseExpr spaces
+
 parseExpr :: Parser LispVal
 parseExpr = parseCharLiteral
         <|> parseAtom
         <|> parseString
         <|> parseNumber
+        <|> do char '('
+               x <- try parseList
+               char ')'
+               return x
 
 readExpr :: String -> String
 readExpr input =
