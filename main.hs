@@ -1,6 +1,8 @@
 module Main where
 
-import Text.ParserCombinators.Parsec hiding (spaces)
+import Text.ParserCombinators.Parsec hiding (spaces,
+                                             (<|>))
+import Control.Applicative hiding (many)
 import Control.Monad
 import System.Environment
 
@@ -26,6 +28,22 @@ parseString = do
 
 parseNumber :: Parser LispVal
 parseNumber = liftM (Number . read) $ many1 digit
+
+{- excercise 1 - rewrite parseNumber using do-notation
+ - and explicit sequencing with >>=
+
+parseNumber' :: Parser LispVal
+parseNumber' = many1 digit >>= return . Number . read
+
+parseNumber'' :: Parser LispVal
+parseNumber'' = do
+    n <- many1 digit
+    return $ Number (read n)
+
+-- extra credit: applicative style
+parseNumber''' :: Parser LispVal
+parseNumber''' = (Number . read) <$> many1 digit
+ -}
 
 parseAtom :: Parser LispVal
 parseAtom = do
