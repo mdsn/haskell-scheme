@@ -79,13 +79,19 @@ parseAtom = do
 parseList :: Parser LispVal
 parseList = List <$> sepBy parseExpr spaces
 
+parseDottedList :: Parser LispVal
+parseDottedList = do
+    head <- endBy parseExpr spaces
+    tail <- char '.' >> spaces >> parseExpr
+    return $ DottedList head tail
+
 parseExpr :: Parser LispVal
 parseExpr = parseCharLiteral
         <|> parseAtom
         <|> parseString
         <|> parseNumber
         <|> do char '('
-               x <- try parseList
+               x <- try parseList <|> parseDottedList
                char ')'
                return x
 
