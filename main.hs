@@ -12,7 +12,23 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Char Char
-             | Bool Bool deriving Show
+             | Bool Bool
+
+instance Show LispVal where
+    show = showVal
+
+showVal :: LispVal -> String
+showVal (String s) = "\"" ++ s ++ "\""
+showVal (Atom a)   = a
+showVal (Number n) = show n
+showVal (Bool False) = "#f"
+showVal (Bool True)  = "#t"
+showVal (List xs)    = "(" ++ unwordsList xs ++ ")"
+showVal (DottedList x xs) = "(" ++ unwordsList x 
+                       ++ " . " ++ showVal xs ++ ")"
+
+unwordsList :: [LispVal] -> String
+unwordsList = unwords . map showVal
 
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?|^_~"
