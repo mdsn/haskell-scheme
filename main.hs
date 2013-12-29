@@ -11,7 +11,7 @@ data LispVal = Atom String
              | DottedList [LispVal] LispVal
              | Number Integer
              | String String
-             | Bool Bool
+             | Bool Bool deriving Show
 
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?|^_~"
@@ -22,9 +22,16 @@ spaces = skipMany1 space
 parseString :: Parser LispVal
 parseString = do
     char '"'
-    x <- many (noneOf "\"") <|> string "\""
+    x <- many (escapedCharacter <|> noneOf "\"")
     char '"'
     return $ String x
+  where
+    escapedCharacter = char '\\' >>
+            (char  '"' >> return '"')
+        <|> (char  't' >> return '\t')
+        <|> (char  'n' >> return '\n')
+        <|> (char  'r' >> return '\r')
+        <|> (char '\\' >> return '\\')
 
 parseNumber :: Parser LispVal
 parseNumber = liftM (Number . read) $ many1 digit
@@ -64,7 +71,7 @@ readExpr :: String -> String
 readExpr input =
     case parse parseExpr "lisp" input of
         Left err -> "No match: " ++ show err
-        Right val -> "Found value"
+        Right val -> "Found value " ++ show val
 
 main :: IO ()
 main = do
