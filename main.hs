@@ -125,11 +125,21 @@ primitives = [("+", numericBinop (+)),
               ("mod", numericBinop mod),
               ("quotient", numericBinop quot),
               ("remainder", numericBinop rem),
-              ("symbol?", isSymbol)]
+              ("symbol?", isSymbol),
+              ("string?", isString),
+              ("number?", isNumber)]
 
 isSymbol :: [LispVal] -> LispVal
-isSymbol [(Atom _)] = Bool True
+isSymbol [Atom _]   = Bool True
 isSymbol _          = Bool False
+
+isString :: [LispVal] -> LispVal
+isString [String _] = Bool True
+isString _          = Bool False
+
+isNumber :: [LispVal] -> LispVal
+isNumber [Number _] = Bool True
+isNumber _          = Bool False
 
 numericBinop :: (Integer -> Integer -> Integer)
              -> [LispVal]
