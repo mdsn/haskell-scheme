@@ -23,6 +23,7 @@ showVal (Atom a)   = a
 showVal (Number n) = show n
 showVal (Bool False) = "#f"
 showVal (Bool True)  = "#t"
+showVal (Char c)     = show c
 showVal (List xs)    = "(" ++ unwordsList xs ++ ")"
 showVal (DottedList x xs) = "(" ++ unwordsList x 
                        ++ " . " ++ showVal xs ++ ")"
