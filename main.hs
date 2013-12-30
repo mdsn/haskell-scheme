@@ -93,7 +93,7 @@ parseQuoted = do
     return $ List [Atom "quote", x]
 
 parseExpr :: Parser LispVal
-parseExpr = parseCharLiteral
+parseExpr = try parseCharLiteral
         <|> parseAtom
         <|> parseString
         <|> parseNumber
@@ -124,7 +124,12 @@ primitives = [("+", numericBinop (+)),
               ("/", numericBinop div),
               ("mod", numericBinop mod),
               ("quotient", numericBinop quot),
-              ("remainder", numericBinop rem)]
+              ("remainder", numericBinop rem),
+              ("symbol?", isSymbol)]
+
+isSymbol :: [LispVal] -> LispVal
+isSymbol [(Atom _)] = Bool True
+isSymbol _          = Bool False
 
 numericBinop :: (Integer -> Integer -> Integer)
              -> [LispVal]
