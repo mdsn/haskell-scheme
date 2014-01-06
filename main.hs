@@ -39,6 +39,11 @@ unpackEquals a1 a2 (AnyUnpacker unpacker) = do
   `catchError` const (return False)
 
 equal :: [LispVal] -> ThrowsError LispVal
+equal as@[List a1, List a2] = listEqv as pairEqv
+  where
+    pairEqv (a1, a2) = case equal [a1, a2] of
+                        Left err -> False
+                        Right (Bool val) -> val
 equal [a1, a2] = do
     primitiveEquals <- liftM or $ mapM (unpackEquals a1 a2)
                         [AnyUnpacker unpackNum
@@ -218,13 +223,18 @@ eqv [String a1, String a2]  = return $ Bool $ a1 == a2
 eqv [Atom a1, Atom a2]      = return $ Bool $ a1 == a2
 eqv [DottedList xs x, DottedList ys y] =
     eqv [List $ xs ++ [x], List $ ys ++ [y]]
-eqv [List a1, List a2]      = return $ Bool $ (length a1 == length a2) &&
-                                    all eqvPair (zip a1 a2)
+eqv as@[List a1, List a2]              = listEqv as eqvPair
   where eqvPair (x1, x2) = case eqv [x1, x2] of
                             Left err         -> False
                             Right (Bool val) -> val
 eqv [_, _]                      = return $ Bool False
 eqv badArgList                  = throwError $ NumArgs 2 badArgList
+
+listEqv :: [LispVal]
+        -> ((LispVal, LispVal) -> Bool)
+        -> ThrowsError LispVal
+listEqv [List a1, List a2] f = return $ Bool $ (length a1 == length a2) &&
+                                    all f (zip a1 a2)
 
 car :: [LispVal] -> ThrowsError LispVal
 car [List (x:xs)]         = return x
