@@ -152,8 +152,7 @@ eval (List [Atom "if", pred, conseq, alt]) = do
         Bool False -> eval alt
         otherwise  -> eval conseq
 eval (List (Atom func : args))             = mapM eval args >>= apply func
-eval badForm                               =
-    throwError $ BadSpecialForm "Unrecognized special form" badForm
+eval val@(List _)                          = return val
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
 apply f args = maybe (throwError $ NotFunction
@@ -184,7 +183,14 @@ primitives = [("+", numericBinop (+)),
               ("string<?", strBoolBinop (<)),
               ("string>?", strBoolBinop (>)),
               ("string<=?", strBoolBinop (<=)),
-              ("string>=?", strBoolBinop (>=))]
+              ("string>=?", strBoolBinop (>=)),
+              ("car", car)]
+
+car :: [LispVal] -> ThrowsError LispVal
+car [List (x:xs)]         = return x
+car [DottedList (x:xs) _] = return x
+car [badArg]              = throwError $ TypeMismatch "pair" badArg
+car badArgList            = throwError $ NumArgs 1 badArgList
 
 boolBinop :: (LispVal -> ThrowsError a)
           -> (a -> a -> Bool)
