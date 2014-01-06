@@ -1,3 +1,4 @@
+{-# LANGUAGE ExistentialQuantification #-}
 module Main where
 
 import Text.ParserCombinators.Parsec hiding (spaces,
@@ -27,6 +28,25 @@ data LispError = NumArgs Integer [LispVal]
                | Default String
 
 type ThrowsError = Either LispError
+
+data Unpacker = forall a. Eq a => AnyUnpacker (LispVal -> ThrowsError a)
+
+unpackEquals :: LispVal -> LispVal -> Unpacker -> ThrowsError Bool
+unpackEquals a1 a2 (AnyUnpacker unpacker) = do
+    unpacked1 <- unpacker a1
+    unpacked2 <- unpacker a2
+    return $ unpacked1 == unpacked2
+  `catchError` const (return False)
+
+equal :: [LispVal] -> ThrowsError LispVal
+equal [a1, a2] = do
+    primitiveEquals <- liftM or $ mapM (unpackEquals a1 a2)
+                        [AnyUnpacker unpackNum
+                        ,AnyUnpacker unpackStr
+                        ,AnyUnpacker unpackBool]
+    eqvEquals <- eqv [a1, a2]
+    return $ Bool (primitiveEquals || let (Bool x) = eqvEquals in x)
+equal badArgList = throwError $ NumArgs 2 badArgList
 
 trapError :: (Show e, MonadError e m) => m String -> m String
 trapError action = catchError action (return . show)
@@ -187,7 +207,9 @@ primitives = [("+", numericBinop (+)),
               ("car", car),
               ("cdr", cdr),
               ("cons", cons),
-              ("eqv?", eqv)]
+              ("eqv?", eqv),
+              ("eq?", eqv),
+              ("equal?", equal)]
 
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv [Bool a1, Bool a2]      = return $ Bool $ a1 == a2
