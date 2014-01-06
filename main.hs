@@ -185,7 +185,8 @@ primitives = [("+", numericBinop (+)),
               ("string<=?", strBoolBinop (<=)),
               ("string>=?", strBoolBinop (>=)),
               ("car", car),
-              ("cdr", cdr)]
+              ("cdr", cdr),
+              ("cons", cons)]
 
 car :: [LispVal] -> ThrowsError LispVal
 car [List (x:xs)]         = return x
@@ -199,6 +200,13 @@ cdr [DottedList [_] x]    = return x
 cdr [DottedList (_:xs) x] = return $ DottedList xs x
 cdr [badArg]              = throwError $ TypeMismatch "pair" badArg
 cdr badArgList            = throwError $ NumArgs 1 badArgList
+
+cons :: [LispVal] -> ThrowsError LispVal
+cons [x, List []]             = return $ List [x]
+cons [x, List xs]             = return $ List $ x:xs
+cons [x, DottedList xs xlast] = return $ DottedList (x:xs) xlast
+cons [x1, x2]                 = return $ DottedList [x1] x2
+cons badArgList               = throwError $ NumArgs 2 badArgList
 
 boolBinop :: (LispVal -> ThrowsError a)
           -> (a -> a -> Bool)
