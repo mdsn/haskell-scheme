@@ -1,0 +1,12 @@
+* Parsing
+1) Add support for the backquote syntactic sugar: the Scheme standard details what it should expand into (quasiquote/unquote).
+2) Add support for vectors. The Haskell representation is up to you: GHC does have an Array data type, but it can be difficult to use. Strictly speaking, a vector should have constant-time indexing and updating, but destructive update in a purely functional language is difficult. You may have a better idea how to do this after the section on set!, later in this tutorial.
+3) Instead of using the try combinator, left-factor the grammar so that the common subsequence is its own parser. You should end up with a parser that matches a string of expressions, and one that matches either nothing or a dot and a single expressions. Combining the return values of these into either a List or a DottedList is left as a (somewhat tricky) exercise for the reader: you may want to break it out into another helper function.
+
+* Evaluation, part 1
+2) Change unpackNum so that it always returns 0 if the value is not a number, even if it's a string or list that could be parsed as a number.
+3) Add the symbol-handling functions from R5RS. A symbol is what we've been calling an Atom in our data constructors
+
+* Evaluation, part 2
+1) Instead of treating any non-false value as true, change the definition of "if" so that the predicate accepts only Bool values and throws an error on any others.
+4) Add the rest of the string functions. You don't yet know enough to do string-set!; this is difficult to implement in Haskell, but you'll have enough information after the next 2 sections
