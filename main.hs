@@ -179,7 +179,7 @@ eval (List [Atom "if", pred, conseq, alt]) = do
         Bool False -> eval alt
         otherwise  -> eval conseq
 
-eval val@(List (Atom "cond" : clauses))    = run clauses
+eval (List (Atom "cond" : clauses))        = run clauses
   where
     run (List (Atom "else" : expr) : []) = last <$> mapM eval expr
     run (List (test : expr) : xs)        = do
@@ -189,6 +189,21 @@ eval val@(List (Atom "cond" : clauses))    = run clauses
             otherwise -> run xs
     run []                               = throwError $ Default
         "No clause evaluated to true in cond statement"
+
+eval (List (Atom "case" : key : clauses))  = do
+    keyValue <- eval key
+    run keyValue clauses
+  where
+    run k (List (List datum:expr):xs) =
+        if k `oneOf` datum then last <$> mapM eval expr
+        else run k xs
+    
+    oneOf k []     = False
+    oneOf k (x:xs) = case eqv [k, x] of
+                        Left err -> False
+                        Right val -> case val of
+                            Bool True -> True
+                            Bool False -> oneOf k xs
 
 eval (List (Atom func : args))             = mapM eval args >>= apply func
 eval val@(List _)                          = return val
