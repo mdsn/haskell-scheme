@@ -7,6 +7,7 @@ import Control.Applicative hiding (many)
 import Control.Monad
 import Control.Monad.Error
 import System.Environment
+import System.IO
 
 data LispVal = Atom String
              | List [LispVal]
@@ -204,7 +205,7 @@ eval (List (Atom "case" : key : clauses))  = do
         else run k xs
     
     oneOf :: LispVal -> [LispVal] -> Bool
-    oneOf k []     = False
+    oneOf _ []     = False
     oneOf k (x:xs) = case safeEqv k x of
                         Bool True -> True
                         Bool False -> oneOf k xs
@@ -355,8 +356,31 @@ readExpr input =
         Left err -> throwError $ Parser err
         Right val -> return val
 
+flushStr :: String -> IO ()
+flushStr s = putStr s >> hFlush stdout
+
+readPrompt :: String -> IO String
+readPrompt prompt = flushStr prompt >> getLine
+
+evalString :: String -> IO String
+evalString expr = return $ extractValue
+                         $ trapError (liftM show $ readExpr expr >>= eval)
+
+evalAndPrint :: String -> IO ()
+evalAndPrint expr = evalString expr >>= putStrLn
+
+until_ :: Monad m => (a -> Bool) -> m a -> (a -> m ()) -> m ()
+until_ pred prompt action = do
+    result <- prompt
+    unless (pred result) $ action result >> until_ pred prompt action
+
+runRepl :: IO ()
+runRepl = until_ (== "quit") (readPrompt "lisp> ") evalAndPrint
+
 main :: IO ()
 main = do
     args <- getArgs
-    let evaled = liftM show $ readExpr (head args) >>= eval
-    putStrLn $ extractValue $ trapError evaled
+    case length args of
+        0 -> runRepl
+        1 -> evalAndPrint $ head args
+        otherwise -> putStrLn "Program takes only 0 or 1 argument"
