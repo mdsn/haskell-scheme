@@ -194,6 +194,8 @@ eval (List (Atom "case" : key : clauses))  = do
     keyValue <- eval key
     run keyValue clauses
   where
+    run _ []                          = throwError $ Default
+        "No clause evaluated to true in case statement"
     run k (List (List datum:expr):xs) =
         if k `oneOf` datum then last <$> mapM eval expr
         else run k xs
