@@ -196,9 +196,10 @@ eval (List (Atom "case" : key : clauses))  = do
     run keyValue clauses
   where
     run :: LispVal -> [LispVal] -> ThrowsError LispVal
-    run _ []                          = throwError $ Default
+    run _ []                               = throwError $ Default
         "No clause evaluated to true in case statement"
-    run k (List (List datum:expr):xs) =
+    run k (List (Atom "else" : expr) : []) = last <$> mapM eval expr
+    run k (List (List datum : expr) : xs)  =
         if k `oneOf` datum then last <$> mapM eval expr
         else run k xs
     
