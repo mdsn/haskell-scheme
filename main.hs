@@ -171,11 +171,21 @@ eval val@(Number _)                        = return val
 eval val@(Bool _)                          = return val
 eval val@(DottedList _ _)                  = return val
 eval (List [Atom "quote", val])            = return val
+
 eval (List [Atom "if", pred, conseq, alt]) = do
     result <- eval pred
     case result of
         Bool False -> eval alt
         otherwise  -> eval conseq
+
+eval val@(List (Atom "cond" : clauses))    = run clauses
+  where
+    run (List (test : expr) : xs) = do
+        result <- eval test
+        case result of
+            Bool True -> last <$> mapM eval expr
+            otherwise -> run xs
+
 eval (List (Atom func : args))             = mapM eval args >>= apply func
 eval val@(List _)                          = return val
 
