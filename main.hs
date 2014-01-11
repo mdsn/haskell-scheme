@@ -204,11 +204,9 @@ eval (List (Atom "case" : key : clauses))  = do
     
     oneOf :: LispVal -> [LispVal] -> Bool
     oneOf k []     = False
-    oneOf k (x:xs) = case eqv [k, x] of
-                        Left err -> False
-                        Right val -> case val of
-                            Bool True -> True
-                            Bool False -> oneOf k xs
+    oneOf k (x:xs) = case safeEqv k x of
+                        Bool True -> True
+                        Bool False -> oneOf k xs
 
 eval (List (Atom func : args))             = mapM eval args >>= apply func
 eval val@(List _)                          = return val
@@ -249,6 +247,13 @@ primitives = [("+", numericBinop (+)),
               ("eqv?", eqv),
               ("eq?", eqv),
               ("equal?", equal)]
+
+-- doesn't throw error since it only accepts two arguments
+-- returns false in case of error
+safeEqv :: LispVal -> LispVal -> LispVal
+safeEqv a b = case eqv [a, b] of
+                Left _           -> Bool False
+                Right (Bool val) -> Bool val
 
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv [Bool a1, Bool a2]      = return $ Bool $ a1 == a2
