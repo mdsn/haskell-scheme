@@ -69,6 +69,7 @@ showError (NumArgs ex found)       = "Expected " ++ show ex
 showError (TypeMismatch ex found)  = "Invalid type: expected " ++ ex
                                   ++ ", found " ++ show found
 showError (Parser err)             = "Parse error at " ++ show err
+showError (Default s)              = s
 
 instance Show LispError where
     show = showError
@@ -180,11 +181,14 @@ eval (List [Atom "if", pred, conseq, alt]) = do
 
 eval val@(List (Atom "cond" : clauses))    = run clauses
   where
-    run (List (test : expr) : xs) = do
+    run (List (Atom "else" : expr) : []) = last <$> mapM eval expr
+    run (List (test : expr) : xs)        = do
         result <- eval test
         case result of
             Bool True -> last <$> mapM eval expr
             otherwise -> run xs
+    run []                               = throwError $ Default
+        "No clause evaluated to true in cond statement"
 
 eval (List (Atom func : args))             = mapM eval args >>= apply func
 eval val@(List _)                          = return val
