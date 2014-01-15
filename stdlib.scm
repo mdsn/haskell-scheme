@@ -10,6 +10,8 @@
 (define negative?           (curry > 0))
 (define (odd? n)            (= (mod n 2) 1))
 (define (even? n)           (= (mod n 2) 0))
+(define (negate n)          (* (- 0 1) n))
+(define (abs n)             (if (negative? n) (negate n) n))
 (define (foldr f end lst)
   (if (null? lst)
     end
