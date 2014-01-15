@@ -7,7 +7,7 @@ import Control.Applicative hiding (many)
 import Control.Monad
 import Control.Monad.Error
 import Data.IORef
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import System.Environment
 import System.IO
 
@@ -18,6 +18,12 @@ data LispVal = Atom String
              | String String
              | Char Char
              | Bool Bool
+             | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
+             | Func { params  :: [String]
+                    , vararg  :: Maybe String
+                    , body    :: [LispVal]
+                    , closure :: Env
+                    }
 
 instance Show LispVal where
     show = showVal
@@ -147,6 +153,15 @@ showVal (Char c)     = show c
 showVal (List xs)    = "(" ++ unwordsList xs ++ ")"
 showVal (DottedList x xs) = "(" ++ unwordsList x 
                        ++ " . " ++ showVal xs ++ ")"
+showVal (PrimitiveFunc _) = "<primitive>"
+showVal (Func { params  = args
+              , vararg  = varargs
+              , body    = body
+              , closure = env }) =
+    "(lambda (" ++ unwords (map show args) ++
+        (case varargs of
+            Nothing -> ""
+            Just a  -> " . " ++ a) ++ ") ...)"
 
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
@@ -274,17 +289,53 @@ eval env (List [Atom "set!", Atom var, form])  =
 eval env (List [Atom "define", Atom var, form]) =
     eval env form >>= defineVar env var
 
-eval env (List (Atom func : args))             =
-    mapM (eval env) args >>= liftThrows . apply func
+eval env (List (Atom "define" : List (Atom var : params) : body)) =
+    makeNormalFunc env params body >>= defineVar env var
+
+eval env (List (Atom "define" : DottedList (Atom var : params) varargs : body)) =
+    makeVarargs varargs env params body >>= defineVar env var
+
+eval env (List (Atom "lambda" : List params : body)) =
+    makeNormalFunc env params body
+
+eval env (List (Atom "lambda" : DottedList params varargs : body)) =
+    makeVarargs varargs env params body
+
+eval env (List (Atom "lambda" : varargs@(Atom _) : body)) =
+    makeVarargs varargs env [] body
+
+eval env (List (function : args)) = do
+    f <- eval env function
+    argVals <- mapM (eval env) args
+    apply f argVals
 
 eval env badForm = throwError $
                    BadSpecialForm "Unrecognized special form" badForm
 
-apply :: String -> [LispVal] -> ThrowsError LispVal
-apply f args = maybe (throwError $ NotFunction
-                        "Unrecognized primitive function args" f)
-                     ($ args)
-                     (lookup f primitives)
+apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
+apply (PrimitiveFunc f) args                  = liftThrows $ f args
+apply (Func params varargs body closure) args = 
+    if num params /= num args && isNothing varargs
+        then throwError $ NumArgs (num params) args
+        else liftIO (bindVars closure $ zip params args)
+            >>= bindVarArgs varargs
+            >>= evalBody
+  where
+    remainingArgs = drop (length params) args
+    num = toInteger . length
+    evalBody env = liftM last $ mapM (eval env) body
+    bindVarArgs arg env = case arg of
+        Just argName -> liftIO $ bindVars env [(argName, List remainingArgs)]
+        Nothing      -> return env
+
+makeFunc varargs env params body =
+    return $ Func (map showVal params) varargs body env
+makeNormalFunc = makeFunc Nothing
+makeVarargs = makeFunc . Just . showVal
+
+primitiveBindings :: IO Env
+primitiveBindings = nullEnv >>= flip bindVars (map makePrimitive primitives)
+  where makePrimitive (var, f) = (var, PrimitiveFunc f)
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives = [("+", numericBinop (+)),
@@ -442,10 +493,11 @@ until_ pred prompt action = do
     unless (pred result) $ action result >> until_ pred prompt action
 
 runOne :: String -> IO ()
-runOne expr = nullEnv >>= flip evalAndPrint expr
+runOne expr = primitiveBindings >>= flip evalAndPrint expr
 
 runRepl :: IO ()
-runRepl = nullEnv >>= until_ (== "quit") (readPrompt "lisp> ") . evalAndPrint
+runRepl = primitiveBindings >>= until_ (== "quit")
+                                       (readPrompt "lisp> ") . evalAndPrint
 
 main :: IO ()
 main = do
